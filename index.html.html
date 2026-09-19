@@ -1,0 +1,149 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111"><link rel="manifest" href="manifest.json"><title>Loan Account</title><style>html{-webkit-text-size-adjust:100%;text-size-adjust:100%}body{margin:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,sans-serif}.app{max-width:430px;margin:auto;min-height:100vh;padding-bottom:80px}header{background:#111;color:#fff;padding:25px 18px;font-size:28px;font-weight:700}main{padding:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.card,.item{background:#fff;border-radius:16px;padding:16px;margin:8px 0}.label{font-size:12px;color:#777}.value{font-size:21px;font-weight:700;margin-top:6px}button{border:0;border-radius:12px;padding:13px;background:#111;color:#fff;font-weight:700;width:100%;margin:5px 0}nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(430px,100%);height:68px;background:#fff;border-top:1px solid #ddd;display:flex}nav button{background:none;color:#666;margin:0;border-radius:0}nav button.active{color:#111}.modal{display:none;position:fixed;inset:0;background:#0007;align-items:flex-end}.sheet{background:white;width:min(430px,100%);margin:auto;padding:20px;border-radius:20px 20px 0 0}input,select{font-size:16px!important;-webkit-text-size-adjust:100%}input{width:100%;padding:12px;margin:5px 0;border:1px solid #ddd;border-radius:10px;box-sizing:border-box}select{box-sizing:border-box}</style><body>
+<div id="login" style="display:none;position:fixed;inset:0;background:#f5f5f5;z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="width:min(360px,100%)">
+    <h2 id="loginTitle">Loan Account</h2>
+    <p id="loginHint"></p>
+    <input id="loginPass" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <button onclick="setupPassword()" id="setupBtn">Set Password</button>
+  </div>
+</div>
+
+<div class="app" id="app">
+<header><span id="appTitle">Loan Account</span>
+<select id="lang" onchange="setLang(this.value)" style="float:right;background:#111;color:#fff;border:1px solid #555;border-radius:8px;padding:6px;font-size:16px">
+<option value="en">English</option><option value="zh">中文</option>
+</select></header>
+<main id="main"></main>
+<nav>
+<button onclick="home()">⌂<br><span id="navHome">Home</span></button>
+<button onclick="customers()">👤<br><span id="navCustomers">Customers</span></button>
+<button onclick="payments()">💳<br><span id="navPayment">Payment</span></button>
+<button onclick="report()">▥<br><span id="navReport">Report</span></button>
+</nav>
+</div>
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+
+<script>
+let C=JSON.parse(localStorage.C||'[]'), P=JSON.parse(localStorage.P||'[]');
+let lang=localStorage.lang==='zh'?'zh':'en';
+const save=()=>{localStorage.C=JSON.stringify(C);localStorage.P=JSON.stringify(P)};
+const rm=n=>'RM '+(+n||0).toFixed(2);
+const paid=c=>P.filter(p=>String(p.cid)===String(c.id)).reduce((a,p)=>a+(+p.amount||0),0);
+const bal=c=>Math.max((+c.payable||0)-paid(c),0);
+const fmtDate=d=>new Date(d).toLocaleDateString(lang==='zh'?'zh-CN':'en-MY',{year:'numeric',month:'short',day:'numeric'});
+const waPhone=p=>String(p||'').replace(/\D/g,'');
+
+const T={
+en:{title:'Loan Account',home:'Home',customers:'Customers',payment:'Payment',report:'Report',disbursed:'Total Disbursed',collected:'Collected',outstanding:'Outstanding',active:'Active',recent:'Recent Customers',add:'＋ Add Customer',record:'Record Payment',amount:'Payment Amount RM',note:'Note',save:'Save Payment',first:'Please add a customer first.',new:'New Customer',name:'Name *',phone:'Phone',ic:'IC',area:'Area',job:'Job / Company',salary:'Monthly Salary',approved:'Approved Amount',fee:'Fee',tenure:'Tenure (months)',monthly:'Monthly Payment',saveCustomer:'Save',cancel:'Cancel',enterName:'Enter name',reportTitle:'Report',balances:'Balances',close:'Close',totalPayable:'Total Payable',enterAmount:'Enter amount',loanBalance:'Balance:',edit:'Edit',delete:'Delete',confirmDelete:'Delete this customer?',search:'🔍 Search customer (Name / Phone / IC / Area / Job)',noCustomer:'No customer found',backup:'⬇ Backup Data',next:'Next Payment',whatsapp:'WhatsApp',history:'Payment History',noPayment:'No payments yet',logout:'Logout',password:'Password',login:'Login',setPassword:'Set Password',passwordHint:'Set a local password for this device.',passwordRequired:'Enter password',wrongPassword:'Wrong password',changePassword:'Change Password',newPassword:'New Password',setOk:'Password set.',resetNote:'Password is stored only on this device.'},
+zh:{title:'贷款账户',home:'首页',customers:'客户',payment:'还款',report:'报告',disbursed:'总放款',collected:'已收款',outstanding:'未还余额',active:'进行中',recent:'最近客户',add:'＋ 添加客户',record:'记录还款',amount:'还款金额 RM',note:'备注',save:'保存还款',first:'请先添加客户。',new:'新客户',name:'姓名 *',phone:'电话号码',ic:'身份证',area:'地区',job:'工作 / 公司',salary:'每月薪水',approved:'批准金额',fee:'费用',tenure:'期限（月）',monthly:'每月还款',saveCustomer:'保存',cancel:'取消',enterName:'请输入姓名',reportTitle:'报告',balances:'余额',close:'关闭',totalPayable:'应还总额',enterAmount:'请输入金额',loanBalance:'余额：',edit:'编辑',delete:'删除',confirmDelete:'确定删除这个客户吗？',search:'🔍 搜索客户（姓名 / 电话 / IC / 地区 / 工作）',noCustomer:'找不到客户',backup:'⬇ 备份数据',next:'下次还款',whatsapp:'WhatsApp',history:'还款记录',noPayment:'还没有还款记录',logout:'退出',password:'密码',login:'登录',setPassword:'设置密码',passwordHint:'为这台设备设置本地密码。',passwordRequired:'请输入密码',wrongPassword:'密码错误',changePassword:'更改密码',newPassword:'新密码',setOk:'密码已设置。',resetNote:'密码只储存在这台设备。'}
+};
+const t=k=>T[lang][k]||T.en[k]||k;
+
+function setLang(v){lang=v==='zh'?'zh':'en';localStorage.lang=lang;renderNav();home()}
+function renderNav(){
+  appTitle.textContent=t('title'); navHome.textContent=t('home'); navCustomers.textContent=t('customers'); navPayment.textContent=t('payment'); navReport.textContent=t('report');
+  lang.value=lang;
+}
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+function home(){
+ let o=C.reduce((a,c)=>a+(+c.net||0),0),p=P.reduce((a,x)=>a+(+x.amount||0),0),b=C.reduce((a,c)=>a+bal(c),0);
+ main.innerHTML=`<div class=grid><div class=card><div class=label>${t('disbursed')}</div><div class=value>${rm(o)}</div></div>
+ <div class=card><div class=label>${t('collected')}</div><div class=value>${rm(p)}</div></div>
+ <div class=card><div class=label>${t('outstanding')}</div><div class=value>${rm(b)}</div></div>
+ <div class=card><div class=label>${t('active')}</div><div class=value>${C.filter(c=>bal(c)>0).length}</div></div></div>
+ <h3>${t('recent')}</h3>${C.slice().reverse().slice(0,5).map(row).join('')}
+ <button onclick=add()>${t('add')}</button>`;
+}
+function row(c){
+ let next=nextPayment(c);
+ return `<div class=item onclick="detail('${c.id}')"><b>${esc(c.name)}</b><br><small>${esc(c.area||'-')} · ${esc(c.phone||'-')}</small>
+ <br>${t('loanBalance')} <b>${rm(bal(c))}</b>${next?`<br><small>${t('next')}: ${fmtDate(next)}</small>`:''}</div>`
+}
+function customers(q=''){
+ main.innerHTML=`<button onclick=add()>${t('add')}</button><input id="searchCustomer" value="${esc(q)}" oninput="filterCustomers(this.value)" placeholder="${t('search')}">
+ <h3>${t('customers')} (<span id="customerCount">${C.length}</span>)</h3><div id="customerList">${C.map(row).join('')||`<div class=item>${t('first')}</div>`}</div>`;
+}
+function filterCustomers(q){
+ q=q.toLowerCase().trim(); let list=C.filter(c=>[c.name,c.phone,c.ic,c.area,c.job].some(v=>String(v||'').toLowerCase().includes(q)));
+ customerCount.textContent=list.length; customerList.innerHTML=list.map(row).join('')||`<div class=item>${t('noCustomer')}</div>`;
+}
+function nextPayment(c){
+ if(!c.monthly||bal(c)<=0)return null;
+ let last=P.filter(p=>String(p.cid)===String(c.id)).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+ let d=last?new Date(last.date):new Date(c.startDate||Date.now());
+ d.setMonth(d.getMonth()+1); return d;
+}
+function payments(){
+ main.innerHTML=`<h3>${t('record')}</h3>${C.length?`<select id=pc>${C.filter(c=>bal(c)>0).map(c=>`<option value="${c.id}">${esc(c.name)} — ${rm(bal(c))}</option>`).join('')}</select>
+ <input id=pa type=number step="0.01" placeholder="${t('amount')}"><input id=pn placeholder="${t('note')}"><input id=pd type=date value="${new Date().toISOString().slice(0,10)}">
+ <button onclick=pay()>${t('save')}</button>`:`<div class=item>${t('first')}</div>`}
+ <h3>${t('history')}</h3>${P.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).map(p=>{let c=C.find(x=>String(x.id)===String(p.cid));return `<div class=item>${esc(c?.name||'Customer')} <b style=float:right>${rm(p.amount)}</b><br><small>${fmtDate(p.date)}${p.note?' · '+esc(p.note):''}</small></div>`}).join('')||`<div class=item>${t('noPayment')}</div>`}`;
+}
+function pay(){
+ let amount=+pa.value||0;if(amount<=0)return alert(t('enterAmount'));
+ P.push({id:Date.now(),cid:pc.value,amount,date:pd.value,note:pn.value||''});save();payments();
+}
+function add(){
+ sheet.innerHTML=`<h3>${t('new')}</h3><input id=n placeholder="${t('name')}"><input id=ph placeholder="${t('phone')}"><input id=ic placeholder="${t('ic')}">
+ <input id=ar placeholder="${t('area')}"><input id=job placeholder="${t('job')}"><input id=sal type=number placeholder="${t('salary')}">
+ <input id=ap type=number step="0.01" placeholder="${t('approved')}"><input id=fee type=number step="0.01" placeholder="${t('fee')}">
+ <input id=ten type=number placeholder="${t('tenure')}"><input id=mon type=number step="0.01" placeholder="${t('monthly')}">
+ <input id=start type=date value="${new Date().toISOString().slice(0,10)}"><button onclick=saveC()>${t('saveCustomer')}</button><button onclick=closeM()>${t('cancel')}</button>`;
+ modal.style.display='flex'
+}
+function saveC(){
+ let name=n.value.trim();if(!name)return alert(t('enterName'));let approved=+ap.value||0,feeV=+fee.value||0,monthly=+mon.value||0,tenure=+ten.value||0;
+ C.push({id:Date.now(),name,phone:ph.value,ic:ic.value,area:ar.value,job:job.value,salary:+sal.value||0,approved,fee:feeV,net:Math.max(approved-feeV,0),monthly,tenure,payable:monthly*tenure,startDate:start.value});save();closeM();customers()
+}
+function detail(id){
+ let c=C.find(x=>String(x.id)===String(id));if(!c)return;
+ let hist=P.filter(p=>String(p.cid)===String(id)).sort((a,b)=>new Date(b.date)-new Date(a.date));
+ let next=nextPayment(c),phone=waPhone(c.phone);
+ sheet.innerHTML=`<h3>${esc(c.name)}</h3><div class=item>${t('phone')}: ${esc(c.phone||'-')}<br>${t('ic')}: ${esc(c.ic||'-')}<br>${t('area')}: ${esc(c.area||'-')}<br>
+ ${t('job')}: ${esc(c.job||'-')}<br>${t('salary')}: ${rm(c.salary)}<br>${t('approved')}: ${rm(c.approved)}<br>${t('fee')}: ${rm(c.fee)}<br>Net: ${rm(c.net)}<br>
+ ${t('totalPayable')}: ${rm(c.payable)}<br>${t('collected')}: ${rm(paid(c))}<br><b>${t('loanBalance')} ${rm(bal(c))}</b>${next?`<br>${t('next')}: ${fmtDate(next)}`:''}</div>
+ <h4>${t('history')}</h4>${hist.map(p=>`<div class=item>${rm(p.amount)} · ${fmtDate(p.date)}${p.note?' · '+esc(p.note):''}</div>`).join('')||`<div class=item>${t('noPayment')}</div>`}
+ ${phone?`<button onclick="window.open('https://wa.me/${phone}','_blank')">📱 ${t('whatsapp')}</button>`:''}
+ <button onclick="editCustomer('${c.id}')">${t('edit')}</button><button onclick="deleteCustomer('${c.id}')">${t('delete')}</button><button onclick=closeM()>${t('close')}</button>`;
+ modal.style.display='flex'
+}
+function editCustomer(id){
+ let c=C.find(x=>String(x.id)===String(id));if(!c)return;
+ sheet.innerHTML=`<h3>${t('edit')}</h3><input id=n value="${esc(c.name)}" placeholder="${t('name')}"><input id=ph value="${esc(c.phone||'')}" placeholder="${t('phone')}"><input id=ic value="${esc(c.ic||'')}" placeholder="${t('ic')}">
+ <input id=ar value="${esc(c.area||'')}" placeholder="${t('area')}"><input id=job value="${esc(c.job||'')}" placeholder="${t('job')}"><input id=sal type=number value="${c.salary||0}" placeholder="${t('salary')}">
+ <input id=ap type=number step="0.01" value="${c.approved||0}" placeholder="${t('approved')}"><input id=fee type=number step="0.01" value="${c.fee||0}" placeholder="${t('fee')}">
+ <input id=ten type=number value="${c.tenure||0}" placeholder="${t('tenure')}"><input id=mon type=number step="0.01" value="${c.monthly||0}" placeholder="${t('monthly')}">
+ <input id=start type=date value="${c.startDate||''}"><button onclick="updateCustomer('${c.id}')">${t('saveCustomer')}</button><button onclick=closeM()>${t('cancel')}</button>`;
+}
+function updateCustomer(id){
+ let c=C.find(x=>String(x.id)===String(id));if(!c)return;c.name=n.value.trim();c.phone=ph.value;c.ic=ic.value;c.area=ar.value;c.job=job.value;c.salary=+sal.value||0;c.approved=+ap.value||0;c.fee=+fee.value||0;c.tenure=+ten.value||0;c.monthly=+mon.value||0;c.startDate=start.value;c.net=Math.max(c.approved-c.fee,0);c.payable=c.monthly*c.tenure;save();closeM();customers()
+}
+function deleteCustomer(id){
+ if(!confirm(t('confirmDelete')))return;C=C.filter(x=>String(x.id)!==String(id));P=P.filter(x=>String(x.cid)!==String(id));save();closeM();customers()
+}
+function report(){
+ let o=C.reduce((a,c)=>a+(+c.net||0),0),p=P.reduce((a,x)=>a+(+x.amount||0),0);
+ main.innerHTML=`<h3>${t('reportTitle')}</h3><div class=item>${t('disbursed')} <b style=float:right>${rm(o)}</b></div><div class=item>${t('collected')} <b style=float:right>${rm(p)}</b></div><div class=item>${t('outstanding')} <b style=float:right>${rm(C.reduce((a,c)=>a+bal(c),0))}</b></div>
+ <h3>${t('balances')}</h3>${C.map(c=>`<div class=item>${esc(c.name)}<b style=float:right>${rm(bal(c))}</b></div>`).join('')}
+ <button onclick=backup()>${t('backup')}</button><button onclick=logout()>${t('logout')}</button>`;
+}
+function backup(){
+ let data={C,P,lang,exportedAt:new Date().toISOString()};let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='loan-account-backup.json';a.click();URL.revokeObjectURL(a.href)
+}
+function closeM(){modal.style.display='none'}
+function setupPassword(){
+ let p=loginPass.value.trim();if(!p)return alert(t('passwordRequired'));localStorage.appPassword=p;alert(t('setOk'));loginPass.value='';checkAuth()
+}
+function login(){if(loginPass.value===localStorage.appPassword){sessionStorage.loggedIn='1';loginPass.value='';checkAuth()}else alert(t('wrongPassword'))}
+function logout(){sessionStorage.removeItem('loggedIn');checkAuth()}
+function checkAuth(){
+ const has=!!localStorage.appPassword, ok=sessionStorage.loggedIn==='1'||!has;
+ login.style.display=ok?'none':'flex';app.style.display=ok?'block':'none';
+ loginTitle.textContent=t('title');loginHint.textContent=has?t('passwordRequired'):t('passwordHint');setupBtn.style.display=has?'none':'block';
+}
+renderNav();checkAuth();if(sessionStorage.loggedIn==='1'||!localStorage.appPassword)home();
+</script>
+</body>
